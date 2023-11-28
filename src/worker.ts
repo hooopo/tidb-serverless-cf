@@ -1,4 +1,5 @@
 import { connect } from '@tidbcloud/serverless'
+import process from 'process';
 
 export interface Env {
 	DATABASE_URL: string;
@@ -12,6 +13,14 @@ export default {
 		const openai_conversation_id = request.headers.get('openai-conversation-id') || '00000000-0000-0000-0000-000000000000';
 		const db_name = "db" + openai_conversation_id.replace(/-/g, '');
 		
+		const db_config = new URL(process.env.DATABASE_URL.replace('mysql://', 'http://'));
+		const tenant_id = db_config.username.split('.')[0];
+
+		// generate temp user and password for guest, not very secure, but it's not a problem.
+		const guest_user = tenant_id + '.' + openai_conversation_id.split('-')[0];
+		const guest_password = openai_conversation_id.split('-')[3];
+    
+
 		if (url.pathname === '/') {
 			// HTML content
 			const htmlContent = `<!DOCTYPE html>
@@ -37,10 +46,12 @@ export default {
 
 		const conn = connect({url:env.DATABASE_URL})
 
-		// create db if not exist
+		// setup guest user and database
 		await conn.execute(`CREATE DATABASE IF NOT EXISTS ${db_name}`);
+		await conn.execute(`CREATE USER IF NOT EXISTS '${guest_user}'@'%' IDENTIFIED BY '${guest_password}';`);
+		await conn.execute(`GRANT ALL PRIVILEGES ON ${db_name}.* TO '${guest_user}'@'%';`);
 
-		const guest_conn = connect({url:env.DATABASE_URL, database:db_name})
+		const guest_conn = connect({url:env.DATABASE_URL, database:db_name, username:guest_user, password:guest_password})
 
 		let query = ''
 		let resp
