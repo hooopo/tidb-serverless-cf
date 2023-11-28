@@ -7,19 +7,10 @@ export interface Env {
 
 export default {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+		
 		const url = new URL(request.url)
 		const pathname = url.pathname
 		const search = url.searchParams
-		const openai_conversation_id = request.headers.get('openai-conversation-id') || '00000000-0000-0000-0000-000000000000';
-		const db_name = "db" + openai_conversation_id.replace(/-/g, '');
-		
-		const db_config = new URL(process.env.DATABASE_URL.replace('mysql://', 'http://'));
-		const tenant_id = db_config.username.split('.')[0];
-
-		// generate temp user and password for guest, not very secure, but it's not a problem.
-		const guest_user = tenant_id + '.' + openai_conversation_id.split('-')[0];
-		const guest_password = openai_conversation_id.split('-')[3];
-    
 
 		if (url.pathname === '/') {
 			// HTML content
@@ -40,6 +31,16 @@ export default {
 				},
 			})
 		}
+
+		const openai_conversation_id = request.headers.get('openai-conversation-id') || '00000000-0000-0000-0000-000000000000';
+		const db_name = "db" + openai_conversation_id.replace(/-/g, '');
+		
+		const db_config = new URL(env.DATABASE_URL.replace('mysql://', 'http://'));
+		const tenant_id = db_config.username.split('.')[0];
+
+		// generate temp user and password for guest, not very secure, but it's not a problem.
+		const guest_user = tenant_id + '.' + openai_conversation_id.split('-')[0];
+		const guest_password = openai_conversation_id.split('-')[3];
 
 		const json_data = await request.json();
 		console.log(json_data);
